@@ -1,0 +1,78 @@
+param (
+    [Parameter(Mandatory=$true)]
+    [string]$Site,
+    [Parameter(Mandatory=$true)]
+    [string]$DateStr # format : yyyy-MM-dd
+)
+
+# Validation du format de date
+if ($DateStr -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    Write-Error "Le format de date doit être yyyy-MM-dd"
+    exit 1
+}
+
+# Définition des chemins (utilisation de chemins absolus pour plus de sécurité)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$zipPath = Join-Path $scriptDir "7z_files\$Site\$DateStr.7z"
+$destPath = Join-Path $scriptDir "public\files\$Site\$($DateStr.Replace('-', '\'))"
+
+Write-Host "Chemin du fichier ZIP: $zipPath"
+Write-Host "Dossier de destination: $destPath"
+
+# Vérification de l'existence du fichier ZIP
+if (-not (Test-Path $zipPath)) {
+    Write-Error "Le fichier ZIP n'existe pas: $zipPath"
+    exit 1
+}
+
+# Vérification de l'existence de 7-Zip
+$sevenZipPaths = @(
+    "C:\Program Files\7-Zip\7z.exe",
+    "C:\Program Files (x86)\7-Zip\7z.exe",
+    "C:\7-Zip\7z.exe"
+)
+
+$sevenZipExe = $null
+foreach ($path in $sevenZipPaths) {
+    if (Test-Path $path) {
+        $sevenZipExe = $path
+        break
+    }
+}
+
+if (-not $sevenZipExe) {
+    Write-Error "7-Zip n'a pas été trouvé. Veuillez l'installer ou vérifier le chemin."
+    exit 1
+}
+
+Write-Host "Utilisation de 7-Zip: $sevenZipExe"
+
+# Création du dossier destination si nécessaire
+try {
+    New-Item -ItemType Directory -Force -Path $destPath | Out-Null
+    Write-Host "Dossier de destination créé/vérifié: $destPath"
+}
+catch {
+    Write-Error "Impossible de créer le dossier de destination: $($_.Exception.Message)"
+    exit 1
+}
+
+# Décompression avec 7-Zip
+Write-Host "Début de la décompression..."
+try {
+    $result = & $sevenZipExe x "`"$zipPath`"" "`"-o$destPath`"" -y
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Décompression réussie!" -ForegroundColor Green
+    } else {
+        Write-Error "Erreur lors de la décompression. Code de sortie: $LASTEXITCODE"
+        Write-Host "Sortie 7-Zip: $result"
+        exit 1
+    }
+}
+catch {
+    Write-Error "Erreur lors de l'exécution de 7-Zip: $($_.Exception.Message)"
+    exit 1
+}
+
+Write-Host "Script terminé avec succès."
