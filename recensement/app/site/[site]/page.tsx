@@ -20,7 +20,16 @@ export default function SitePage({ params }: { params: { site: string } }) {
   // Fetch files on component mount - utilise la route correcte
   useEffect(() => {
     fetch(`/api/files/${site}`)
-      .then(res => res.json())
+        .then(async res => {
+    const text = await res.text(); // on lit la réponse brute
+    console.log('Réponse brute (files):', text); // pour debug
+    try {
+      return JSON.parse(text); // on essaie de parser manuellement
+    } catch (err) {
+      console.error('Erreur de parsing JSON (files):', err);
+      throw new Error('Réponse invalide du serveur');
+    }
+  })
       .then(data => {
         setFiles(data);
       })

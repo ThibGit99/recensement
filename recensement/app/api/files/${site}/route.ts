@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { site: string } }
 ) {
   const site = params.site;
-  const folder = path.join(process.cwd(), '7z_files', site);
+  const folder = path.join(process.cwd(), 'importer', site);
 
   if (!fs.existsSync(folder)) {
     return NextResponse.json([], { status: 200 });

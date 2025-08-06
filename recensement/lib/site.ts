@@ -1,7 +1,7 @@
 export const SITE_NAMES: Record<string, string> = {
   '1': 'armement',
   '2': 'bibliotheque',
-  '3': 'securite-info',
+  '3': 'secureinfo',
   '4': 'challenge',
 };
 
