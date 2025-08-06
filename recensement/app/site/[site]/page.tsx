@@ -11,15 +11,15 @@ export default function SitePage({ params }: { params: { site: string } }) {
   const siteKey = Object.keys(SITE_NAMES).find(key => SITE_NAMES[key] === site);
 
   if (!siteKey) {
-    return <div>Site inconnu</div>;
+    return <div>site inconnu</div>;
   }
 
   // State to hold the list of files
   const [files, setFiles] = useState<any[]>([]);
 
-  // Fetch files on component mount
+  // Fetch files on component mount - utilise la route correcte
   useEffect(() => {
-    fetch(`/api/your-route/${site}`) // Make sure this matches your route path
+    fetch(`/api/files/${site}`)
       .then(res => res.json())
       .then(data => {
         setFiles(data);
@@ -30,10 +30,9 @@ export default function SitePage({ params }: { params: { site: string } }) {
   }, [site]);
 
   return (
-    <main>
-      <h1>{SITE_LABELS[siteKey]}</h1>
-      {/* You can pass `files` to SiteCalendar or display them here */}
-      <SiteCalendar site={siteKey} files={files} />
+    <main className="p-8">
+      <h1 className="text-2xl font-bold mb-4">{SITE_LABELS[siteKey]}</h1>
+      <SiteCalendar site={site} files={files} />
     </main>
   );
 }

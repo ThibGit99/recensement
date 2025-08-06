@@ -8,62 +8,79 @@ import { EventClickArg } from '@fullcalendar/core';
 interface FileEvent {
   title: string;
   start: string;
-  url: string;
+  extendedProps: {
+    fileName: string;
+    dateStr: string;
+  };
 }
 
 export default function SiteCalendar({ site, files }: { site: string; files: any[] }) {
   const [events, setEvents] = useState<FileEvent[]>([]);
 
   useEffect(() => {
-    fetch(`/api/files/cd`)
-      .then(res => res.json())
-      .then((data) => {
-        const evts = data.map((file: any) => {
-          const hourMatch = file.name.match(/^(\d{2})/);
-          const fileDate = new Date(file.modified);
+    if (!files || files.length === 0) return;
 
-          if (hourMatch) {
-            const hour = parseInt(hourMatch[1]);
-            fileDate.setHours(hour);
-          }
+    const evts = files.map((file: any) => {
+      // Parse la date depuis le nom du fichier (format: yyyy-mm-dd.7z)
+      const dateStr = file.date; // Déjà au format yyyy-mm-dd
+      const fileDate = new Date(dateStr + 'T12:00:00'); // Ajoute une heure par défaut
 
-          return {
-            title: file.name,
-            start: fileDate.toISOString(),
-            url: `/files/${site}/${file.date.replace(/-/g, '/')}/${file.date}/${file.name}`,
-          };
-        });
+      // Essaie d'extraire l'heure depuis le nom si présent
+      const hourMatch = file.name.match(/(\d{2})\d{2}-\d{2}-\d{2}/);
+      if (hourMatch) {
+        const hour = parseInt(hourMatch[1]);
+        if (hour >= 0 && hour <= 23) {
+          fileDate.setHours(hour);
+        }
+      }
 
-        setEvents(evts);
-      });
-  }, [files, site]);
+      return {
+        title: file.name.replace('.7z', ''),
+        start: fileDate.toISOString(),
+        extendedProps: {
+          fileName: file.name,
+          dateStr: dateStr,
+        },
+      };
+    });
+
+    setEvents(evts);
+  }, [files]);
 
   const handleEventClick = (info: EventClickArg) => {
-    if (!info.event.url) return;
+    const { fileName, dateStr } = info.event.extendedProps;
 
-    const url = new URL(info.event.url, window.location.href);
-    const segments = url.pathname.split('/');
-
-    const dateStr = `${segments[4]}-${segments[5]}-${segments[6]}`; // yyyy-mm-dd
-
-    fetch(`/api/extract?site=${site}&date=${dateStr}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert('Fichier extrait et prêt à être consulté.');
-        } else {
-          alert('Erreur lors de l\'extraction : ' + (data.error || 'Inconnue'));
-        }
-      });
+    if (confirm(`Extraire le fichier ${fileName} ?`)) {
+      fetch(`/api/extract?site=${site}&date=${dateStr}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert('Fichier extrait et prêt à être consulté.');
+          } else {
+            alert('Erreur lors de l\'extraction : ' + (data.error || 'Inconnue'));
+          }
+        })
+        .catch(error => {
+          alert('Erreur de réseau : ' + error.message);
+        });
+    }
   };
 
   return (
-    <FullCalendar
-      plugins={[dayGridPlugin]}
-      initialView="dayGridMonth"
-      events={events}
-      height="auto"
-      eventClick={handleEventClick}
-    />
+    <div className="w-full">
+      <FullCalendar
+        plugins={[dayGridPlugin]}
+        initialView="dayGridMonth"
+        events={events}
+        height="auto"
+        eventClick={handleEventClick}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth'
+        }}
+        locale="fr"
+      />
+    </div>
   );
 }
