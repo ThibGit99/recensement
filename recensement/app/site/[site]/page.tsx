@@ -3,44 +3,79 @@
 import { useEffect, useState } from 'react';
 import SiteCalendar from '@/components/SiteCalendar';
 import { SITE_NAMES, SITE_LABELS } from '@/lib/site';
+import React from 'react';
+import { useParams } from 'next/navigation';
 
-export default function SitePage({ params }: { params: { site: string } }) {
-  const { site } = params;
+export default function SitePage() {
+  const params = useParams();
+  const site = params.site as string;
 
-  // Find the site key from the site name
   const siteKey = Object.keys(SITE_NAMES).find(key => SITE_NAMES[key] === site);
 
-  if (!siteKey) {
-    return <div>site inconnu</div>;
-  }
-
-  // State to hold the list of files
   const [files, setFiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch files on component mount - utilise la route correcte
   useEffect(() => {
+    if (!site) return;
+
+    setLoading(true);
+    setError(null);
+
     fetch(`/api/files/${site}`)
-        .then(async res => {
-    const text = await res.text(); // on lit la réponse brute
-    console.log('Réponse brute (files):', text); // pour debug
-    try {
-      return JSON.parse(text); // on essaie de parser manuellement
-    } catch (err) {
-      console.error('Erreur de parsing JSON (files):', err);
-      throw new Error('Réponse invalide du serveur');
-    }
-  })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Erreur ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setFiles(data);
+        setFiles(data || []);
       })
       .catch(error => {
         console.error('Error fetching files:', error);
+        setError(error.message);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, [site]);
 
+  if (!siteKey) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 px-4 py-3 rounded">
+          <h3 className="font-bold">Site inconnu</h3>
+          <p>Le site "{site}" n'existe pas.</p>
+          <p className="mt-2">Sites disponibles : {Object.values(SITE_NAMES).join(', ')}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold mb-4">{SITE_LABELS[siteKey]}</h1>
+    <main className="p-8 max-w-7xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">{SITE_LABELS[siteKey]}</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Cliquez sur une date du calendrier pour voir et extraire les archives disponibles
+        </p>
+      </div>
+
+      {loading && (
+        <div className="flex items-center space-x-2 mb-6">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <span>Chargement des archives...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-6">
+          <h3 className="font-bold">Erreur lors du chargement</h3>
+          <p>{error}</p>
+        </div>
+      )}
+
       <SiteCalendar site={site} files={files} />
     </main>
   );
